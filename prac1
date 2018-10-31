@@ -1,0 +1,76 @@
+Practical 1
+
+Step 2:
+External Router
+Adapter 1: NAT
+Adapter 2: Internal Network 'dmznet'
+DMZ Server
+Adapter 1: Internal Network 'dmznet'
+Internal Router
+Adapter 1: Internal Network 'intent'
+Adapter 2: Internal Network 'dmznet'
+Internal Host
+Adapter 1: Internal Network 'intnet'
+Desktop
+Desktop
+IPv4 Method -> Manual
+Addresses: 10.10.1.1 : 255.255.255.0 : 10.10.1.254
+DNS (OFF): 8.8.8.8, 8.8.4.4
+Routes (ON)
+Servers
+sudo dpkg-reconfigure tzdata
+sudo nano /etc/netplan/50-cloud-init.yaml
+
+# External Router
+network:
+    ethernets:
+        enp0s3:
+            addresses: []
+            dhcp4: true
+        enp0s8:
+            addresses: [192.168.1.254/24]
+            dhcp4: false
+            routes:
+            - to: 10.10.1.0/24
+              via: 192.168.1.1
+    version: 2
+
+# DMZ Server
+network:
+    ethernets:
+        enp0s3:
+            addresses: [192.168.1.80/24]
+            dhcp4: false
+            routes:
+            - to: 10.10.1.0/24
+              via: 192.168.1.1
+            - to: 0.0.0.0/0
+              via: 192.168.1.254
+            nameservers:
+              addresses: [8.8.8.8,8.8.4.4]
+    version: 2
+
+# Internal Router
+network:
+    ethernets:
+        enp0s3:
+            addresses: [10.10.1.254/24]
+            dhcp4: false
+        enp0s8:
+            addresses: [192.168.1.1/24]
+            dhcp4: false
+            routes:
+            - to: 0.0.0.0/0
+              via: 192.168.1.254
+            nameservers:
+              addresses: [8.8.8.8,8.8.4.4]
+    version: 2
+
+sudo netplan apply
+sudo nano /etc/sysctl.conf
+    sysctl net.ipv4.ip_forward=1
+sudo reboot
+
+# External Router
+sudo iptables -t nat -A POSTROUTING -o enp0s3 -j MASQUERADE #Run on Startup
+sudo apt-get install iptables-persistent
